@@ -18,13 +18,12 @@
 # bash ci_crio_entry_point.sh
 
 set -o errexit
-set -o nounset
 set -o pipefail
 set -o errtrace
 
 if [ -z "$PULL_NUMBER" ]; then
-	echo "ERROR: PULL_NUMBER missing"
-	exit 1
+	echo "No pull number given: testing with HEAD"
+	PULL_NUMBER="NONE"
 fi
 
 # set defaults for required variables
@@ -37,7 +36,7 @@ export CI_JOB="EXTERNAL_CRIO"
 export INSTALL_KATA="yes"
 export GO111MODULE=auto
 
-latest_release="1.22"
+latest_release="1.23"
 
 sudo bash -c "cat <<EOF > /etc/yum.repos.d/kubernetes.repo
 [kubernetes]
@@ -82,8 +81,8 @@ tests_repo="${kata_github}/tests"
 tests_repo_dir="${GOPATH}/src/${tests_repo}"
 
 # Kata Containers repository
-kata_repo="${kata_github}/kata-containers"
-kata_repo_dir="${GOPATH}/src/${kata_repo}"
+katacontainers_repo="${kata_github}/kata-containers"
+katacontainers_repo_dir="${GOPATH}/src/${katacontainers_repo}"
 
 # Print system info and env variables in case we need to debug
 uname -a
@@ -98,24 +97,26 @@ mkdir -p $(dirname "${tests_repo_dir}")
 source ${tests_repo_dir}/.ci/ci_job_flags.sh
 
 # Clone the kata-containers repository
-mkdir -p $(dirname "${kata_repo_dir}")
-[ -d "${kata_repo_dir}" ] || git clone "https://${kata_repo}.git" "${kata_repo_dir}"
+mkdir -p $(dirname "${katacontainers_repo_dir}")
+[ -d "${katacontainers_repo_dir}" ] || git clone "https://${katacontainers_repo}.git" "${katacontainers_repo_dir}"
 
 # Clone the crio repository
 mkdir -p $(dirname "${crio_repo_dir}")
 [ -d "${crio_repo_dir}" ] || git clone "https://${crio_repo}.git" "${crio_repo_dir}"
 
-# Checkout to the PR commit and rebase with main
-cd "${crio_repo_dir}"
-git fetch origin "pull/${pr_number}/head:${pr_branch}"
-git checkout "${pr_branch}"
-git rebase "origin/${PULL_BASE_REF}"
+if [ "${pr_number}" != "NONE" ]; then
+	# Checkout to the PR commit and rebase with main
+	cd "${crio_repo_dir}"
+	git fetch origin "pull/${pr_number}/head:${pr_branch}"
+	git checkout "${pr_branch}"
+	git rebase "origin/${PULL_BASE_REF}"
 
-# And show what we rebased on top of to aid debugging
-git log --oneline main~1..HEAD
+	# And show what we rebased on top of to aid debugging
+	git log --oneline main~1..HEAD
+fi
 
 # Edit critools & kubernetes versions
-cd "${kata_repo_dir}"
+cd "${katacontainers_repo_dir}"
 
 # Install yq
 ${GOPATH}/src/${tests_repo}/.ci/install_yq.sh

@@ -37,7 +37,9 @@ case "${CI_JOB}" in
 		echo "INFO: Running QAT integration test"
 		sudo -E PATH="$PATH" CRI_RUNTIME="containerd" bash -c "make qat"
 		;;
-	"CRI_CONTAINERD"|"CRI_CONTAINERD_K8S"|"CRI_CONTAINERD_K8S_INITRD")
+	"CRI_CONTAINERD"|"CRI_CONTAINERD_K8S")
+		echo "INFO: Running nydus test"
+		sudo -E PATH="$PATH" CRI_RUNTIME="containerd" bash -c "make nydus"
 		echo "INFO: Running stability test"
 		sudo -E PATH="$PATH" CRI_RUNTIME="containerd" bash -c "make stability"
 		echo "INFO: Containerd checks"
@@ -54,16 +56,6 @@ case "${CI_JOB}" in
 		# sudo -E PATH="$PATH" CRI_RUNTIME="containerd" bash -c "make pmem"
 		echo "INFO: Running ksm test"
 		sudo -E PATH="$PATH" CRI_RUNTIME="containerd" bash -c "make ksm"
-		;;
-	"CRI_CONTAINERD_K8S_COMPLETE")
-		echo "INFO: Running e2e kubernetes tests"
-		sudo -E PATH="$PATH" CRI_RUNTIME="containerd" bash -c "make kubernetes-e2e"
-		;;
-	"CRI_CONTAINERD_K8S_MINIMAL")
-		echo "INFO: Running e2e kubernetes tests"
-		sudo -E PATH="$PATH" CRI_RUNTIME="containerd" bash -c "make kubernetes-e2e"
-		echo "INFO: Running tracing test"
-		sudo -E PATH="$PATH" bash -c "make tracing"
 		;;
 	"CRIO_K8S")
 		echo "INFO: Running kubernetes tests"
@@ -90,14 +82,6 @@ case "${CI_JOB}" in
 		echo "INFO: Running kubernetes tests with containerd"
 		sudo -E PATH="$PATH" CRI_RUNTIME="containerd" bash -c "make kubernetes"
 		;;
-	"CLOUD-HYPERVISOR-K8S-CONTAINERD-MINIMAL")
-		echo "INFO: Running e2e kubernetes tests"
-		sudo -E PATH="$PATH" CRI_RUNTIME="containerd" bash -c "make kubernetes-e2e"
-		;;
-	"CLOUD-HYPERVISOR-K8S-CONTAINERD-FULL")
-		echo "INFO: Running complete e2e kubernetes tests"
-		sudo -E PATH="$PATH" CRI_RUNTIME="containerd" bash -c "make kubernetes-e2e"
-		;;
 	"EXTERNAL_CRIO")
 		echo "INFO: Running tests on cri-o PR"
 		sudo -E PATH="$PATH" bash -c "make kubernetes"
@@ -115,19 +99,23 @@ case "${CI_JOB}" in
 	"METRICS")
 		export RUNTIME="kata-runtime"
 		export CTR_RUNTIME="io.containerd.run.kata.v2"
-		sudo -E ln -sf "${config_path}/configuration-qemu.toml" "${config_path}/configuration.toml"
-		echo "INFO: Running qemu metrics tests"
-		sudo -E PATH="$PATH" ".ci/run_metrics_PR_ci.sh"
-		echo "INFO: Running cloud hypervisor metrics tests"
-		export KATA_HYPERVISOR="cloud-hypervisor"
+		export config_path="/usr/share/defaults/kata-containers"
 		tests_repo="github.com/kata-containers/tests"
-		pushd "${GOPATH}/src/${tests_repo}"
+
+		echo "INFO: Running qemu metrics tests"
+		export KATA_HYPERVISOR="qemu"
+		sudo -E ln -sf "${config_path}/configuration-qemu.toml" "${config_path}/configuration.toml"
+		sudo -E PATH="$PATH" ".ci/run_metrics_PR_ci.sh"
+
 		echo "INFO: Install cloud hypervisor"
+		export KATA_HYPERVISOR="cloud-hypervisor"
+		pushd "${GOPATH}/src/${tests_repo}"
 		sudo -E PATH="$PATH" ".ci/install_cloud_hypervisor.sh"
 		popd
+
 		echo "INFO: Use cloud hypervisor configuration"
-		export config_path="/usr/share/defaults/kata-containers"
 		sudo -E ln -sf "${config_path}/configuration-clh.toml" "${config_path}/configuration.toml"
+
 		echo "INFO: Running cloud hypervisor metrics tests"
 		sudo -E PATH="$PATH" ".ci/run_metrics_PR_ci.sh"
 		;;

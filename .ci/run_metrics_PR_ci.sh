@@ -42,9 +42,6 @@ run() {
 			# Run the memory footprint test - the main test that
 			# KSM affects.
 			bash density/memory_usage.sh 20 300 auto
-
-			# And now ensure KSM is turned off for the rest of the tests
-			disable_ksm
 		fi
 	fi
 
@@ -64,9 +61,10 @@ run() {
 	# Run the time tests
 	bash time/launch_times.sh -i public.ecr.aws/ubuntu/ubuntu:latest -n 20
 
-	# Skip: Issue: https://github.com/kata-containers/tests/issues/3203
-	# Run the cpu statistics test
-	# bash network/cpu_statistics_iperf.sh
+	if [ "${KATA_HYPERVISOR}" = "cloud-hypervisor" ]; then
+		# Run the cpu statistics test
+		bash network/iperf3_kubernetes/k8s-network-metrics-iperf3.sh -b
+	fi
 
 	popd
 }
@@ -80,28 +78,9 @@ check() {
 		sudo make install
 		popd
 
-		# FIXME - we need to document the whole metrics CI setup, and the ways it
-		# can be configured and adapted. See:
-		# https://github.com/kata-containers/ci/issues/58
-		#
-		# If we are running on a (transient) cloud machine then we cannot
-		# tie the name of the expected results config file to the machine name - but
-		# we can expect the cloud image to have a default named file in the correct
-		# place.
-		if [ -n "${METRICS_CI_CLOUD}" ]; then
-			local CM_BASE_FILE="${CHECKMETRICS_CONFIG_DEFDIR}/checkmetrics-json.toml"
-
-			# If we don't have a machine specific file in place, then copy
-			# over the default cloud density file.
-			if [ ! -f ${CM_BASE_FILE} ]; then
-				sudo mkdir -p ${CHECKMETRICS_CONFIG_DEFDIR}
-				sudo cp ${CM_DEFAULT_DENSITY_CONFIG} ${CM_BASE_FILE}
-			fi
-		else
-			# For bare metal repeatable machines, the config file name is tied
-			# to the uname of the machine.
-			local CM_BASE_FILE="${CHECKMETRICS_CONFIG_DIR}/checkmetrics-json-${KATA_HYPERVISOR}-$(uname -n).toml"
-		fi
+		# For bare metal repeatable machines, the config file name is tied
+		# to the uname of the machine.
+		local CM_BASE_FILE="${CHECKMETRICS_CONFIG_DIR}/checkmetrics-json-${KATA_HYPERVISOR}-$(uname -n).toml"
 
 		checkmetrics --debug --percentage --basefile ${CM_BASE_FILE} --metricsdir ${RESULTS_DIR}
 		cm_result=$?

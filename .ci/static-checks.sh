@@ -97,7 +97,6 @@ long_options=(
 	[files]="Check files"
 	[force]="Force a skipped test to run"
 	[golang]="Check '.go' files"
-	[rust]="Check '.rs' files"
 	[help]="Display usage statement"
 	[json]="Check JSON files"
 	[labels]="Check labels databases"
@@ -282,9 +281,6 @@ EOF
 
 static_check_go_arch_specific()
 {
-	if [ "${RUST_AGENT:-}" == "yes" ]; then
-		return
-	fi
 	local go_packages
 	local submodule_packages
 	local all_packages
@@ -362,17 +358,6 @@ static_check_go_arch_specific()
 		(cd $d && GO111MODULE=auto eval "$linter" "${linter_args}" ".")
 	done
 
-}
-
-static_check_rust_arch_specific()
-{
-	if [ "${RUST_AGENT:-}" != "yes" ]; then
-		return
-	fi
-
-	{ find . -type f -name "*.rs"  | egrep -v "target/|grpc-rs/|protocols/" | xargs rustfmt --check; ret=$?; } || true
-
-	[ $ret -eq 0 ] || die "crate not formatted by rustfmt."
 }
 
 # Install yamllint in the different Linux distributions
@@ -825,9 +810,35 @@ static_check_docs()
 	for doc in $docs
 	do
 		"$cmd" check "$doc" || { info "spell check failed for document $doc" && docs_failed=1; }
+
+		static_check_eof "$doc"
 	done
 
 	[ $docs_failed -eq 0 ] || die "spell check failed, See https://github.com/kata-containers/kata-containers/blob/main/docs/Documentation-Requirements.md#spelling for more information."
+}
+
+static_check_eof()
+{
+	local file="$1"
+	local anchor="EOF"
+
+
+	[ -z "$file" ] && info "No files to check" && return
+
+	# Skip the itself
+	[ "$file" == "$script_name" ] && return
+
+	# Skip the Vagrantfile
+	[ "$file" == "Vagrantfile" ] && return
+
+	local invalid=$(cat "$file" |\
+		egrep -o '<<-* *\w*' |\
+		sed -e 's/^<<-*//g' |\
+		tr -d ' ' |\
+		sort -u |\
+		egrep -v '^$' |\
+		egrep -v "$anchor" || true)
+	[ -z "$invalid" ] || echo "Expected '$anchor' here anchor, in $file found: $invalid"
 }
 
 # Tests to apply to all files.
@@ -921,9 +932,6 @@ static_check_files()
 # - Ensure vendor metadata is valid.
 static_check_vendor()
 {
-	if [ "${RUST_AGENT:-}" == "yes" ]; then
-		return
-	fi
 	local files
 	local vendor_files
 	local result
@@ -1062,6 +1070,8 @@ static_check_shell()
 		{ $chronic bash -n "$script"; ret=$?; } || true
 
 		[ "$ret" -eq 0 ] || die "check for script '$script' failed"
+
+		static_check_eof "$script"
 	done
 }
 
@@ -1152,6 +1162,7 @@ static_check_dockerfiles()
 		"tools/osbuilder/rootfs-builder/centos/Dockerfile.in"
 		"tools/osbuilder/rootfs-builder/debian/Dockerfile.in"
 		"tools/osbuilder/rootfs-builder/fedora/Dockerfile.in"
+		"tools/osbuilder/rootfs-builder/template/Dockerfile.template"
 		"tools/osbuilder/rootfs-builder/ubuntu/Dockerfile.in"
 		"tools/osbuilder/rootfs-builder/ubuntu/Dockerfile-aarch64.in"
 		"tools/packaging/tests/Dockerfile/Dockerfile.in"
@@ -1219,7 +1230,7 @@ static_check_dockerfiles()
 		# dockerfile. Some of our dockerfiles are actually templates
 		# with special syntax, thus the linter might fail to build
 		# the AST. Here we handle Dockerfile templates.
-		if [[ "$file" =~ Dockerfile.*.in$ ]]; then
+		if [[ "$file" =~ Dockerfile.*\.(in|template)$ ]]; then
 			# In our templates, text with marker as @SOME_NAME@ is
 			# replaceable. Usually it is used to replace in a
 			# FROM command (e.g. `FROM @UBUNTU_REGISTRY@/ubuntu`)
@@ -1326,7 +1337,6 @@ main()
 			--files) func=static_check_files ;;
 			--force) force="true" ;;
 			--golang) func=static_check_go_arch_specific ;;
-			--rust) func=static_check_rust_arch_specific ;;
 			-h|--help) usage; exit 0 ;;
 			--json) func=static_check_json ;;
 			--labels) func=static_check_labels;;

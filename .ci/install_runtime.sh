@@ -14,14 +14,13 @@ cidir=$(dirname "$0")
 
 source "${cidir}/lib.sh"
 source /etc/os-release || source /usr/lib/os-release
-KATA_REPO=${katacontainers_repo:="github.com/kata-containers/kata-containers"}
+KATACONTAINERS_REPO=${katacontainers_repo:="github.com/kata-containers/kata-containers"}
 KATA_HYPERVISOR="${KATA_HYPERVISOR:-qemu}"
 KATA_EXPERIMENTAL_FEATURES="${KATA_EXPERIMENTAL_FEATURES:-}"
 MACHINETYPE="${MACHINETYPE:-q35}"
 METRICS_CI="${METRICS_CI:-}"
 PREFIX="${PREFIX:-/usr}"
 DESTDIR="${DESTDIR:-/}"
-TEST_CGROUPSV2="${TEST_CGROUPSV2:-false}"
 TEST_INITRD="${TEST_INITRD:-}"
 USE_VSOCK="${USE_VSOCK:-yes}"
 
@@ -45,7 +44,7 @@ export SHAREDIR=${PREFIX}/share
 OPENSHIFT_CI="${OPENSHIFT_CI:-false}"
 
 runtime_config_path="${SYSCONFDIR}/kata-containers/configuration.toml"
-runtime_src_path="${GOPATH}/src/${KATA_REPO}/src/runtime"
+runtime_src_path="${GOPATH}/src/${KATACONTAINERS_REPO}/src/runtime"
 
 PKGDEFAULTSDIR="${DESTDIR}${SHAREDIR}/defaults/kata-containers"
 NEW_RUNTIME_CONFIG="${PKGDEFAULTSDIR}/configuration.toml"
@@ -53,7 +52,7 @@ NEW_RUNTIME_CONFIG="${PKGDEFAULTSDIR}/configuration.toml"
 
 build_install_shim_v2(){
 	if [ ! -d "$runtime_src_path" ]; then
-		go get "$KATA_REPO"
+		go get "$KATACONTAINERS_REPO"
 	fi
 	pushd "$runtime_src_path"
 	make
@@ -86,6 +85,7 @@ case "${KATA_HYPERVISOR}" in
 		;;
 	"cloud-hypervisor")
 		enable_hypervisor_config "${PKGDEFAULTSDIR}/configuration-clh.toml"
+		sudo sed -i 's|/usr/bin/cloud-hypervisor|/opt/kata/bin/cloud-hypervisor|g' "${runtime_config_path}"
 		;;
 	"firecracker")
 		enable_hypervisor_config "${PKGDEFAULTSDIR}/configuration-fc.toml"
