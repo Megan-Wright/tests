@@ -89,6 +89,10 @@ cri-containerd:
 cc-containerd:
 	bash integration/containerd/confidential/run_tests.sh
 
+# Run the Confidential Containers tests for kubernetes.
+cc-kubernetes:
+	bash integration/kubernetes/confidential/run_tests.sh
+
 log-parser:
 	make -C cmd/log-parser
 
