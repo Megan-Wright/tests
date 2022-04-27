@@ -34,6 +34,9 @@ init_ci_flags() {
 	# Ask runtime to only use cgroup at pod level
 	# Useful for pod overhead
 	export DEFSANDBOXCGROUPONLY="false"
+	# Build Kata for Confidential Containers
+	# Values: "yes|no"
+	export KATA_BUILD_CC="no"
 	# Hypervisor to use
 	export KATA_HYPERVISOR=""
 	# Install k8s
@@ -136,6 +139,15 @@ case "${CI_JOB}" in
 	export KATA_HYPERVISOR="qemu"
 	export KUBERNETES="yes"
 	export USE_DEVMAPPER="true"
+	;;
+"CC_CRI_CONTAINERD_CLOUD_HYPERVISOR")
+	# This job only tests containerd + k8s
+	init_ci_flags
+	export CRI_CONTAINERD="yes"
+	export CRI_RUNTIME="containerd"
+	export KATA_HYPERVISOR="cloud-hypervisor"
+	# Export any CC specific environment variables
+	export KATA_BUILD_CC="yes"
 	;;
 "CRIO_K8S")
 	init_ci_flags
