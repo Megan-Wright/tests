@@ -46,14 +46,6 @@ create_test_pod() {
 	kubernetes_create_cc_pod $pod_config
 }
 
-assert_pod_fail() {
-	local container_config="$1"
-	echo "In assert_pod_fail: "$container_config
-
-	echo "Attempt to create the container but it should fail"
-	! kubernetes_create_cc_pod "$container_config" || /bin/false
-}
-
 setup() {
 	start_date=$(date +"%Y-%m-%d %H:%M:%S")
 
