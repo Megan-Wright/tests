@@ -46,7 +46,7 @@ setup() {
     local pod_ip_address=$(kubectl get pod  -o jsonpath='{.items..status.hostIP}')
     ssh-keygen -lf <(ssh-keyscan ${pod_ip_address} 2>/dev/null)
 
-    ssh -i ${doc_repo_dir}/demos/ssh-demo/ccv0-ssh root@${pod_ip_address} -o StrictHostKeyChecking=accept-new "exit"
+    ssh -i ${doc_repo_dir}/demos/ssh-demo/ccv0-ssh root@${pod_ip_address} -o StrictHostKeyChecking=accept-new exit
 }
 
 @test "$test_tag Test cannot pull an encrypted image inside the guest without decryption key" {

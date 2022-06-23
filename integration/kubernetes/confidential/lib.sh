@@ -87,29 +87,24 @@ retrieve_sandbox_id() {
 # Check out the doc repo if required and pushd
 pushd_ssh_demo() {
     local doc_repo=github.com/confidential-containers/documentation
-    local doc_repo_dir="${GOPATH}/src/${doc_repo}"
+    export doc_repo_dir="${GOPATH}/src/${doc_repo}"    
     mkdir -p $(dirname ${doc_repo_dir}) && sudo chown -R ${USER}:${USER} $(dirname ${doc_repo_dir})
     if [ ! -d "${doc_repo_dir}" ]; then
         git clone https://${doc_repo} "${doc_repo_dir}"
-        pushd "${doc_repo_dir}/demos/ssh-demo"
         # Update runtimeClassName from kata-cc to kata
         sudo sed -i -e 's/\([[:blank:]]*runtimeClassName: \).*/\1kata/g' "${doc_repo_dir}/demos/ssh-demo/k8s-cc-ssh.yaml"
-        chmod 600 ccv0-ssh
-    else 
-        pushd "${doc_repo_dir}/demos/ssh-demo"
+        chmod 600 ${doc_repo_dir}/demos/ssh-demo/ccv0-ssh
     fi
 }
 
 kubernetes_create_ssh_demo_pod() {
 	pushd_ssh_demo
-	kubectl apply -f k8s-cc-ssh.yaml && pod=$(kubectl get pods -o jsonpath='{.items..metadata.name}') && kubectl wait --for=condition=ready pods/$pod
+	kubectl apply -f "${doc_repo_dir}/demos/ssh-demo/k8s-cc-ssh.yaml" && pod=$(kubectl get pods -o jsonpath='{.items..metadata.name}') && kubectl wait --for=condition=ready pods/$pod
 	kubectl get pod $pod
-	popd
 }
 
 connect_to_ssh_demo_pod() {
 	local doc_repo=github.com/confidential-containers/documentation
-	local doc_repo_dir="${GOPATH}/src/${doc_repo}"
 	local ssh_command="ssh -i ${doc_repo_dir}/demos/ssh-demo/ccv0-ssh root@$(kubectl get service ccv0-ssh -o jsonpath="{.spec.clusterIP}")"
 	echo "Issuing command '${ssh_command}'"
 	${ssh_command}
@@ -124,9 +119,8 @@ kubernetes_delete_ssh_demo_pod_if_exists() {
 
 kubernetes_delete_ssh_demo_pod() {
 	pushd_ssh_demo
-	kubectl delete -f k8s-cc-ssh.yaml
+	kubectl delete -f "${doc_repo_dir}/demos/ssh-demo/k8s-cc-ssh.yaml"
 	kubectl wait pod/$1 --for=delete --timeout=-30s
-	popd
 }
 
 assert_pod_fail() {
